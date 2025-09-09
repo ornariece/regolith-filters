@@ -369,6 +369,10 @@ ${Object.entries(stateEntries)
     getState<T extends keyof (BlockStateSuperset & CustomBlockStates)>(
       stateName: T
     ): (BlockStateSuperset & CustomBlockStates)[T] | undefined;
+    withState<T extends keyof (BlockStateSuperset & CustomBlockStates)>(
+        name: T,
+        value: (BlockStateSuperset & CustomBlockStates)[T]
+    ): BlockPermutation;
   }
 }`;
 }
