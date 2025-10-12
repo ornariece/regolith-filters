@@ -3,7 +3,7 @@
     "filters": [
         {
             "runWith": "nodejs",
-            "script": "./qjs-opt.js",
+            "script": "./qjs_opt.js",
             "name": "Optimizes scripts using qjs-opt"
         }
     ]

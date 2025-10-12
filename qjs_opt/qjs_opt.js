@@ -1,7 +1,6 @@
 const { optimize } = require("@bedrock-oss/qjs-opt");
 
-const settings = {
-};
+const settings = {};
 
 function applyRegolithPayload(rawJson) {
   let regolithData;
@@ -22,8 +21,7 @@ function applyRegolithPayload(rawJson) {
 
   const data = regolithData;
 
-  const targetValue =
-    data.target ?? data.source ?? data.file ?? data.path ?? parsed.target;
+  const targetValue = data.target ?? data.source ?? data.file ?? data.path;
   if (targetValue !== undefined) {
     if (typeof targetValue !== "string" || targetValue.trim() === "") {
       throw new CliError(
@@ -46,7 +44,7 @@ function applyRegolithPayload(rawJson) {
     settings.dependencies = [...depsValue];
   }
 
-  const configModeValue = data.configMode ?? parsed.configMode;
+  const configModeValue = data.configMode ?? "default";
   if (configModeValue !== undefined) {
     if (
       configModeValue === "default" ||
@@ -69,8 +67,7 @@ function applyRegolithPayload(rawJson) {
     settings.checkJs = checkJsValue;
   }
 
-  const tsconfigValue =
-    data.tsconfig ?? data.tsconfigPath ?? parsed.tsconfigPath;
+  const tsconfigValue = data.tsconfig ?? data.tsconfigPath;
   if (tsconfigValue !== undefined) {
     if (typeof tsconfigValue !== "string" || tsconfigValue.trim() === "") {
       throw new CliError(
@@ -80,8 +77,7 @@ function applyRegolithPayload(rawJson) {
     settings.tsconfigPath = tsconfigValue;
   }
 
-  const workspaceValue =
-    data.workspace ?? data.workspaceDir ?? parsed.workspaceDir;
+  const workspaceValue = data.workspace ?? data.workspaceDir;
   if (workspaceValue !== undefined) {
     if (typeof workspaceValue !== "string" || workspaceValue.trim() === "") {
       throw new CliError(
@@ -126,11 +122,4 @@ function applyRegolithPayload(rawJson) {
 
 applyRegolithPayload(process.argv[2] || "{}");
 
-const result = optimize(settings);
-
-if (result.changed === 0) {
-  console.log("No changes made.");
-  return;
-}
-
-console.log(`Optimized ${result.changed} files.`);
+optimize(settings);
