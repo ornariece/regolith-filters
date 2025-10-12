@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "qjs_opt",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "target": {
+      "$ref": "#/$defs/pathString",
+      "description": "Primary file or directory to optimize."
+    },
+    "source": {
+      "$ref": "#/$defs/pathString",
+      "description": "Alias for target."
+    },
+    "file": {
+      "$ref": "#/$defs/pathString",
+      "description": "Alias for target."
+    },
+    "path": {
+      "$ref": "#/$defs/pathString",
+      "description": "Alias for target."
+    },
+    "deps": {
+      "$ref": "#/$defs/dependencyArray",
+      "description": "Packages to install into the temporary workspace."
+    },
+    "dependencies": {
+      "$ref": "#/$defs/dependencyArray",
+      "description": "Alias for deps."
+    },
+    "configPath": {
+      "$ref": "#/$defs/pathString",
+      "description": "Path to a JSON config file."
+    },
+    "configFile": {
+      "$ref": "#/$defs/pathString",
+      "description": "Alias for configPath."
+    },
+    "configPathname": {
+      "$ref": "#/$defs/pathString",
+      "description": "Alias for configPath."
+    },
+    "config": {
+      "description": "Either a path to a JSON config file or an inline config object.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/pathString"
+        },
+        {
+          "$ref": "./config.schema.json"
+        }
+      ]
+    },
+    "configMode": {
+      "type": "string",
+      "enum": ["default", "merge", "override"],
+      "description": "Controls how provided config merges with the defaults."
+    },
+    "checkJs": {
+      "type": "boolean",
+      "description": "When true, runs in checkJs mode (defaults to true)."
+    },
+    "checkJS": {
+      "type": "boolean",
+      "description": "Alias for checkJs."
+    },
+    "tsconfig": {
+      "$ref": "#/$defs/pathString",
+      "description": "Explicit path to a tsconfig.json file."
+    },
+    "tsconfigPath": {
+      "$ref": "#/$defs/pathString",
+      "description": "Alias for tsconfig."
+    },
+    "workspace": {
+      "$ref": "#/$defs/pathString",
+      "description": "Reuses an existing workspace directory for dependency installs."
+    },
+    "workspaceDir": {
+      "$ref": "#/$defs/pathString",
+      "description": "Alias for workspace."
+    }
+  },
+  "allOf": [
+    {
+      "description": "Ensure at least one of the target aliases is present.",
+      "anyOf": [
+        { "required": ["target"] },
+        { "required": ["source"] },
+        { "required": ["file"] },
+        { "required": ["path"] }
+      ]
+    }
+  ],
+  "$defs": {
+    "pathString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dependencyArray": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

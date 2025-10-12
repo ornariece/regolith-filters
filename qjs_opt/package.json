@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@bedrock-oss/qjs-opt": "^0.1.0"
+  }
+}

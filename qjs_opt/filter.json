@@ -1,0 +1,10 @@
+{
+    "description": "Optimizes scripts using qjs-opt.",
+    "filters": [
+        {
+            "runWith": "nodejs",
+            "script": "./qjs-opt.js",
+            "name": "Optimizes scripts using qjs-opt"
+        }
+    ]
+}
