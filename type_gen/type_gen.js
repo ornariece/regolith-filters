@@ -2,13 +2,13 @@ const fs = require("fs");
 const path = require("path");
 
 const settings = {
-  outputFile: "Files.ts",
+  outputFile: "gametests/src/Files.ts",
   trimCommonPrefix: false,
 };
 
 // If the legacy file exists, change the default output file to the old default
 if (fs.existsSync("./packs/data/gametests/Files.d.ts")) {
-  settings.outputFile = "Files.d.ts";
+  settings.outputFile = "gametests/src/Files.d.ts";
 }
 
 if (process.argv[2]) {
@@ -16,35 +16,22 @@ if (process.argv[2]) {
   Object.assign(settings, parsedSettings);
 }
 
-if (!settings.outputFile) {
-  console.warn(
-    "No output file specified. Please specify an output file in the settings."
-  );
-  return;
-}
-
 // Initial configuration for running script from the project root directory
 let packsPath = "./packs/";
-let gametestsPath = "./packs/data/gametests/";
+let outputFilePath = "./packs/data/" + settings.outputFile;
 // If the script is run as a regolith filter
 if (
   process.env.ROOT_DIR &&
   fs.existsSync(process.env.ROOT_DIR + "/config.json")
 ) {
-  let config = JSON.parse(
+  const config = JSON.parse(
     fs.readFileSync(process.env.ROOT_DIR + "/config.json", "utf8")
   );
   packsPath = "./";
-  gametestsPath = path.normalize(
-    process.env.ROOT_DIR + "/" + config.regolith.dataPath + "/gametests/"
+  outputFilePath = path.normalize(
+    process.env.ROOT_DIR + "/" + config.regolith.dataPath + "/" +
+      settings.outputFile,
   );
-}
-
-if (!fs.existsSync(gametestsPath)) {
-  console.warn(
-    "Could not find gametests directory. Please make sure the gametests directory is present in the dataPath"
-  );
-  return;
 }
 
 // Helper function to convert a string to Title Case and remove the namespace
@@ -378,15 +365,12 @@ ${Object.entries(stateEntries)
 }
 
 // Write to .d.ts file
-const outputFilePath = gametestsPath + "src/" + settings.outputFile;
-
 let existingContent = "";
 if (fs.existsSync(outputFilePath)) {
   existingContent = fs.readFileSync(outputFilePath, "utf8");
 }
 
 if (existingContent !== enumContent) {
-  fs.writeFileSync(`./data/gametests/src/${settings.outputFile}`, enumContent, "utf8");
   fs.writeFileSync(outputFilePath, enumContent, "utf8");
   console.log(
     `Enum written to ${path.relative(process.env.ROOT_DIR, outputFilePath)}`
