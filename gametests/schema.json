@@ -109,6 +109,11 @@
       "type": "boolean",
       "default": false,
       "description": "Disables adding dependencies and script module to the manifest."
+    },
+    "comptime": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enables build-time evaluation of comptime() calls imported from the virtual 'comptime' module."
     }
   }
 }

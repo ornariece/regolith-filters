@@ -2,6 +2,7 @@
 
 Features
 - Typescript support and bundling through [esbuild](https://esbuild.github.io/)
+- Build-time evaluation of `comptime()` calls
 - Manages manifest script dependencies
 - Manages manifest module
 

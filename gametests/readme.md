@@ -60,6 +60,52 @@ This filter will:
 
 The filter also has included support for importing JSON files using JSON5 parser.
 
+## Build-time evaluation (comptime)
+
+The filter supports evaluating code while the pack is being built through the virtual `comptime` module. The callback runs in Node.js at build time, the `comptime(...)` call is replaced with its serialized result, and any imports or top-level declarations that were only used by comptime callbacks are removed from the compiled script.
+
+```ts
+import { comptime } from "comptime";
+import { execSync } from "child_process";
+
+export interface GitMeta {
+  commit: string | null;
+  branch: string | null;
+  dirty: boolean;
+}
+
+export const GIT_META = comptime<GitMeta>(() => {
+  const commit = runGit("rev-parse HEAD") || null;
+  const branch = runGit("symbolic-ref --short HEAD") || null;
+  const dirty = runGit("status --short") !== "";
+  return { commit, branch, dirty };
+});
+
+function runGit(args: string): string {
+  try {
+    return execSync(`git ${args}`, { stdio: ["pipe", "pipe", "ignore"] }).toString().trim();
+  } catch {
+    return "";
+  }
+}
+```
+
+compiles to:
+
+```js
+const GIT_META = { commit: "e3a6dcce3a35f913e8c2d72892ee97eb9071aa21", branch: "main", dirty: false };
+```
+
+Notes:
+
+- Callbacks may be async (the awaited value is inlined) and may only use imports and top-level declarations of their module — they cannot close over runtime values such as function parameters.
+- Results must be serializable: primitives, plain objects, arrays, `Date`, `RegExp`, `Map` and `Set` are supported. Functions, symbols and class instances are not.
+- Helpers may live in other files; modules imported by comptime callbacks may themselves use `comptime()`.
+- Since callbacks run in Node.js at build time, they can use Node APIs (`child_process`, `fs`, ...). Install `@types/node` in `data/gametests` if you want typings for them.
+- Anything a callback writes to stdout/stderr (including stderr forwarded from child processes) is prefixed with `[comptime <file>]` in the build output, so it is not mistaken for output of the filter itself. Output of child processes started with `stdio: "inherit"` bypasses the prefix.
+- Typings for the `comptime` module ship in `data/gametests/types/comptime.d.ts`. If your project was created with an older version of this filter, copy that file from this repository and add `"types"` to the `include` array of `data/gametests/tsconfig.json`.
+- The feature can be turned off with the `comptime` filter setting.
+
 ## Settings
 
 | Setting                       | Type                                                     | Default                                                 | Description                                                                                                                                         |
@@ -74,6 +120,7 @@ The filter also has included support for importing JSON files using JSON5 parser
 | `debugBuild`                  | boolean                                                  | false                                                   | Enables source maps and adds launch configuration to `.vscode/launch.json` if it exists                                                             |
 | `injectSourceMapping`                  | boolean                                                  | false                                                   | Injects source mapping into a compiled script file. Requires debugBuild to be enabled.                                                             |
 | `disableManifestModification` | boolean                                                  | false                                                   | Disables adding dependencies and script module to the manifest.                                                                                     |
+| `comptime`                    | boolean                                                  | true                                                    | Enables build-time evaluation of `comptime()` calls imported from the virtual `comptime` module.                                                    |
 
 #### Default Build Options
 
@@ -102,6 +149,10 @@ module.exports = {
 ```
 
 ## Changelog
+### 1.8.0
+ - Added build-time evaluation via the virtual `comptime` module. `comptime(fn)` calls are evaluated in Node.js during the build and replaced with their serialized result; imports and top-level declarations used only by comptime callbacks are removed from the compiled script. See [Build-time evaluation (comptime)](#build-time-evaluation-comptime).
+ - Added the `comptime` setting (default `true`) to toggle the feature.
+ - Output written to stdout/stderr during comptime evaluation is prefixed with `[comptime <file>]`.
 ### 1.7.4
  - Add support for manifest V3
 ### 1.7.3

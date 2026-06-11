@@ -55,6 +55,7 @@ const defSettings = {
   debugBuild: false,
   injectSourceMapping: false,
   disableManifestModification: false,
+  comptime: true,
 };
 // Reset external property so that it does not cause issues
 defSettings.buildOptions.external = [];
@@ -157,6 +158,7 @@ const typeMap = {
   moduleType: "string",
   language: "string",
   manifest: "string",
+  comptime: "boolean",
 };
 const throwTypeError = (k) => {
   throw new TypeError(`${k}: ${JSON.stringify(settings[k])} is not an ${typeMap[k]}`);

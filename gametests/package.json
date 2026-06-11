@@ -6,6 +6,7 @@
     "postinstall": "node ./setup.js"
   },
   "dependencies": {
+    "acorn": "^8.16.0",
     "esbuild": "^0.19.8",
     "glob": "^10.3.1",
     "json5": "^2.2.1",
