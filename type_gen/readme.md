@@ -2,7 +2,7 @@
 
 This filter generates a `.d.ts` file that contains all the relevant constants in your add-on.
 
-**Requires the [gametests](https://github.com/Bedrock-OSS/regolith-filters/tree/master/gametests) filter to be installed.**
+**Requires a script bundler filter such as [gametests](https://github.com/Bedrock-OSS/regolith-filters/tree/master/gametests) filter to be installed.**
 
 ## Data
 
@@ -42,13 +42,13 @@ function spawnExampleEntity(dimension: Dimension) {
 
 ```json
 {
-  "outputFile": "Files.d.ts"
+  "outputFile": "gametests/src/Files.d.ts"
 }
 ```
 
 ### outputFile
 
-The output file to write the generated `.d.ts` file to. Defaults to `Files.d.ts`.
+The output file path to write the generated `.d.ts` file to. Relative to the data directory. Defaults to `gametests/src/Files.d.ts`.
 
 ## Changelog
 
