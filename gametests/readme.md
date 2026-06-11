@@ -13,8 +13,7 @@ Install with: `regolith install gametests`. After that, you can place the filter
   "filter": "gametests",
   // Following settings are set by default
   "settings": {
-    "moduleUUID": null,
-    "modules": ["mojang-gametest", "mojang-minecraft"],
+    "modules": ["@minecraft/server@1.0.0"],
     "outfile": "BP/scripts/main.js",
     "manifest": "BP/manifest.json",
     "buildOptions": {
@@ -28,13 +27,13 @@ Install with: `regolith install gametests`. After that, you can place the filter
 }
 ```
 
+Example of a multi-file build without bundling:
+
 ```json
 {
   "filter": "gametests",
-  // Following settings are set by default
   "settings": {
-    "moduleUUID": null,
-    "modules": ["mojang-gametest", "mojang-minecraft"],
+    "modules": ["@minecraft/server@1.16.0"],
     "outfile": "BP/scripts/main.js",
     "outdir": "BP/scripts",
     "manifest": "BP/manifest.json",
@@ -106,13 +105,76 @@ Notes:
 - Typings for the `comptime` module ship in `data/gametests/types/comptime.d.ts`. If your project was created with an older version of this filter, copy that file from this repository and add `"types"` to the `include` array of `data/gametests/tsconfig.json`.
 - The feature can be turned off with the `comptime` filter setting.
 
+## Dropping logging calls (dropLabels)
+
+esbuild's [dropLabels](https://esbuild.github.io/api/#drop-labels) option removes labeled statements, which is handy for stripping logging from release builds — but it only empties the function body, while every call site (including the evaluation of its arguments) stays in the compiled script.
+
+This filter goes one step further: when a function's body consists **entirely** of statements labeled with dropped labels, the function is treated as a marker, and all calls to it are removed as well — including their arguments. Imports and declarations that only existed for those calls are also removed.
+
+```ts
+// log.ts
+export function debug(...args: unknown[]) {
+  LOGGING: {
+    console.warn("[debug]", ...args);
+  }
+}
+```
+
+```ts
+// main.ts
+import { debug } from "./log";
+
+debug("spawned entities:", JSON.stringify(expensiveReport()));
+```
+
+With `"buildOptions": { "dropLabels": ["LOGGING"] }` (e.g. only in your release profile), the compiled script contains neither the `debug` call nor the `expensiveReport()` evaluation, and the import of `log.ts` is removed. Without `dropLabels`, everything works normally.
+
+Class methods are supported the same way. A logging library like [bedrock-boost](https://github.com/Bedrock-OSS/bedrock-boost), whose `Logger` methods are wrapped in `LOGGING:` labels, gets its call sites removed across all the common shapes:
+
+```ts
+import { Logger } from "@bedrock-oss/bedrock-boost";
+
+const log = Logger.getLogger("main");           // instance in a variable
+log.info("expensive:", JSON.stringify(data));    // removed, argument included
+
+class Renderer {
+  private log = Logger.getLogger("renderer");    // instance in a property
+  render() {
+    this.log.debug("frame");                     // removed
+  }
+}
+
+Logger.getLogger("once").warn("chained");        // removed
+export const log2 = Logger.getLogger("shared");  // importing modules drop log2.info(...) too
+```
+
+`Logger.getLogger(...)` itself survives — its body is only partially labeled, so it is not a marker.
+
+Notes:
+
+- A function or method is only treated as a marker when *every* statement of its body is labeled with a dropped label — it provably compiles to a no-op. Bodies with a mix of labeled and unlabeled statements only get the usual esbuild treatment.
+- Calls in expression position are replaced with `(void 0)`, which is exactly what the emptied function would have returned.
+- Argument expressions are removed together with the call, so release builds must not rely on their side effects.
+- Works with named, aliased, default and namespace imports, local functions and classes, marked functions and classes shipped in `node_modules`, and logger instances shared between modules via `export const log = ...`.
+- Calls inside comptime callbacks are not affected — they run at build time, where logging stays useful.
+- Instance tracking is name-based within each module: a binding assigned from `new Logger(...)` or a static factory like `Logger.getLogger(...)` is assumed to stay a logger. There is no type inference — a variable reassigned to something else with an identically named method would be mismatched.
+- The behavior can be turned off with the `dropLabeledCalls` filter setting while still using `dropLabels` itself.
+
+## Automatic module dependencies (`modules: "auto"`)
+
+Instead of maintaining the module list in two places (filter settings and `data/gametests/package.json`), set `"modules": "auto"` to derive it from the `dependencies` of `data/gametests/package.json`. The npm version is mapped to the manifest version automatically (e.g. `2.0.0-beta.1.21.90-stable` becomes `2.0.0-beta`).
+
+`"modules": "auto-dev"` additionally includes `devDependencies`. A typical setup keeps `@minecraft/server-gametest` in `devDependencies`, uses `"auto-dev"` in the development/QA profile and `"auto"` in the release profile — test-only modules then never end up in the released manifest. If the release bundle still imports a dev-only module, the filter prints a warning, because the pack would fail to load it in game.
+
+Engine modules (typings-only packages such as `@minecraft/server`) are added to the manifest and marked external; runtime libraries such as `@minecraft/math` and `@minecraft/vanilla-data` are recognized automatically and bundled as usual.
+
 ## Settings
 
 | Setting                       | Type                                                     | Default                                                 | Description                                                                                                                                         |
 |-------------------------------|----------------------------------------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
 | `buildOptions`                | [buildOptions](https://esbuild.github.io/api/#build-api) | [Default Build Options](#default-build-options)         | Specifies build options for esbuild                                                                                                                 |
 | `moduleUUID`                  | string                                                   | Random UUID generated the first time the filter is ran. | The UUID to place inside the manifest module                                                                                                        |
-| `modules`                     | string[]                                                 | ["@minecraft/server@1.0.0"]                             | The scripting modules to inject as dependencies, follows the format '``@``'                                                                         |
+| `modules`                     | string[] \| "auto" \| "auto-dev"                         | ["@minecraft/server@1.0.0"]                             | The scripting modules to inject as dependencies, follows the format '`<module>@<version>`'. `"auto"` derives them from the dependencies of `data/gametests/package.json`, `"auto-dev"` also includes devDependencies |
 | `outfile`                     | string                                                   | "BP/scripts/main.js"                                    | The path to place the built script file at when buildOptions.bundle is enabled. This property is also used as the entry point for the script module |
 | `outdir`                      | string                                                   | "BP/scripts"                                            | The path to build to when buildOptions.bundle is disabled                                                                                           |
 | `moduleType`                  | string                                                   | "script"                                                | The manifest module type to inject                                                                                                                  |
@@ -121,6 +183,7 @@ Notes:
 | `injectSourceMapping`                  | boolean                                                  | false                                                   | Injects source mapping into a compiled script file. Requires debugBuild to be enabled.                                                             |
 | `disableManifestModification` | boolean                                                  | false                                                   | Disables adding dependencies and script module to the manifest.                                                                                     |
 | `comptime`                    | boolean                                                  | true                                                    | Enables build-time evaluation of `comptime()` calls imported from the virtual `comptime` module.                                                    |
+| `dropLabeledCalls`            | boolean                                                  | true                                                    | When a function's body consists entirely of labels removed by `buildOptions.dropLabels`, calls to it (including their arguments) are removed too.   |
 
 #### Default Build Options
 
@@ -153,6 +216,10 @@ module.exports = {
  - Added build-time evaluation via the virtual `comptime` module. `comptime(fn)` calls are evaluated in Node.js during the build and replaced with their serialized result; imports and top-level declarations used only by comptime callbacks are removed from the compiled script. See [Build-time evaluation (comptime)](#build-time-evaluation-comptime).
  - Added the `comptime` setting (default `true`) to toggle the feature.
  - Output written to stdout/stderr during comptime evaluation is prefixed with `[comptime <file>]`.
+ - Calls to functions and class methods whose body consists entirely of labels removed by `buildOptions.dropLabels` are now removed as well, including their arguments and imports that only existed for them. Logger classes (e.g. bedrock-boost's `Logger`) are tracked through static factories, instance variables and properties, and instances shared between modules. See [Dropping logging calls (dropLabels)](#dropping-logging-calls-droplabels). Can be turned off with the `dropLabeledCalls` setting.
+ - Added `"modules": "auto"` and `"modules": "auto-dev"`, deriving the manifest script dependencies from the dependencies (and, for `auto-dev`, devDependencies) of `data/gametests/package.json`. A warning is printed when the compiled script imports a dev-only module that was excluded from the manifest. See [Automatic module dependencies](#automatic-module-dependencies-modules-auto).
+ - Fixed automatic package installation on macOS and Linux (it silently did nothing on non-Windows systems before).
+ - Fixed the configuration examples in this readme, which used module names and a `moduleUUID` value that the filter rejects.
 ### 1.7.4
  - Add support for manifest V3
 ### 1.7.3

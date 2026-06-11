@@ -3,7 +3,8 @@
 Features
 - Typescript support and bundling through [esbuild](https://esbuild.github.io/)
 - Build-time evaluation of `comptime()` calls
-- Manages manifest script dependencies
+- Strips logging calls (incl. arguments) of functions marked with dropped labels
+- Manages manifest script dependencies, optionally derived from package.json
 - Manages manifest module
 
 This filter manages script-related manifest settings and allows separation of scripts from the main pack.

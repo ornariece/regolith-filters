@@ -56,6 +56,7 @@ const defSettings = {
   injectSourceMapping: false,
   disableManifestModification: false,
   comptime: true,
+  dropLabeledCalls: true,
 };
 // Reset external property so that it does not cause issues
 defSettings.buildOptions.external = [];
@@ -136,12 +137,10 @@ function entryPathify(str) {
   return str.split("/").slice(1).join("/");
 }
 const bundle = settings.buildOptions.bundle;
-let entry = "";
 const out = settings.outfile ?? "BP/scripts/main.js"
 settings.buildOptions.outfile = out;
-entry = entryPathify(out);
+const entry = entryPathify(out);
 if (!bundle) {
-  entry = entryPathify(out);
   delete settings.buildOptions.outfile;
   settings.buildOptions.outdir = settings.outdir ?? "BP/scripts";
 }
@@ -149,16 +148,17 @@ if (!bundle) {
 const external = bundle ? settings.buildOptions.external : [];
 
 // Ensure types for settings
+// (`modules` is validated by resolveModules, which also allows "auto" strings)
 const typeMap = {
   buildOptions: "object",
   moduleUUID: "string",
-  modules: "array",
   outfile: "string",
   outdir: "string",
   moduleType: "string",
   language: "string",
   manifest: "string",
   comptime: "boolean",
+  dropLabeledCalls: "boolean",
 };
 const throwTypeError = (k) => {
   throw new TypeError(`${k}: ${JSON.stringify(settings[k])} is not an ${typeMap[k]}`);
@@ -171,24 +171,21 @@ for (let k in typeMap) {
   } else if (typeof settings[k] !== typeMap[k]) throwTypeError(k);
 }
 
-// Add script module dependencies to manifest
-const parsedModules = [];
-for (let module of settings.modules) {
-  const match = module.match(/(@[^@]+)@(.+)/);
-  if (!match) {
-    throw "Invalid module provided in settings, please follow the format '<module>@<version>' or '<module>'";
-  }
-  const name = match[1];
-  let version = match[2];
-
-  if (!version) throw `No version provided for module '${name}'`;
-  const versionMatch = version.match(/\d+\.\d+\.\d+(?:-beta)?/);
-  if (!versionMatch || versionMatch[0] !== version) {
-    throw `Version '${version}' is not a valid module version`;
-  }
-  external.push(name);
-  parsedModules.push({ name, version });
+// Check if packages need to be installed. This runs before module resolution,
+// because `modules: "auto"` inspects the installed packages.
+const lsResult = runInShell("npm ls --omit=dev --depth=0 --silent", path.join(process.cwd(), "data", "gametests"), false);
+if (lsResult.status === 1) {
+  console.log("Installing packages...");
+  runInShell("npm i", path.join(process.cwd(), "data", "gametests"), true);
+  runInShell("npm i", path.join(projectRoot, "packs", "data", "gametests"), true);
 }
+
+// Resolve script module dependencies for the manifest and esbuild externals
+const { resolveModules } = require("./modules.js");
+const resolvedModules = resolveModules(settings.modules, path.join("data", "gametests"));
+const parsedModules = resolvedModules.modules;
+const devOnlyModules = new Set(resolvedModules.devOnly);
+external.push(...resolvedModules.externals);
 
 if (!settings.disableManifestModification) {
   console.log("Modifying manifest.json");
@@ -383,24 +380,36 @@ async function adjustSourceMap(mapPath, lineOffset) {
 }
 
 function runInShell(cmd, cwd, showStdio) {
-  return spawnSync("cmd", ["/c", cmd], {
+  return spawnSync(cmd, {
+    shell: true,
     cwd: cwd,
     stdio: showStdio ? 'inherit' : undefined
   })
 }
 
-// Check if packages need to be installed
-const result = runInShell("npm ls --production --depth=0 --silent", path.join(process.cwd(), "data", "gametests"), false);
-if (result.status === 1) {
-  console.log("Installing packages...");
-  runInShell("npm i", path.join(process.cwd(), "data", "gametests"), true);
-  runInShell("npm i", path.join(projectRoot, "packs", "data", "gametests"), true);
-}
-
 glob(settings.buildOptions.entryPoints).then(async (paths) => {
   settings.buildOptions.entryPoints = paths;
   require("./moveFiles.js");
-  await require("./build.js").run(settings);
+  const buildResult = await require("./build.js").run(settings);
+
+  // With `modules: "auto"`, dev-only engine modules are kept out of the
+  // manifest — warn when the compiled script still imports one, as it would
+  // fail to load in game.
+  if (buildResult && buildResult.metafile && devOnlyModules.size > 0) {
+    const leaked = new Set();
+    for (const output of Object.values(buildResult.metafile.outputs)) {
+      for (const imp of output.imports ?? []) {
+        if (imp.external && devOnlyModules.has(imp.path)) leaked.add(imp.path);
+      }
+    }
+    for (const name of leaked) {
+      console.warn(
+        `WARNING: The compiled script imports '${name}', which is a devDependency and was not added ` +
+          `to the manifest. The pack will fail to load it in game. Move the module to 'dependencies', ` +
+          `use 'modules: "auto-dev"' in this profile, or keep dev-only code out of this build.`
+      );
+    }
+  }
 
   // If debugBuild and injectSourceMapping is enabled, inject additional mapping data
   if (settings.debugBuild && settings.injectSourceMapping) {
