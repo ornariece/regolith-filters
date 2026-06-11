@@ -125,7 +125,9 @@ function createCallDropper(dropLabels) {
         node = stmt.declaration;
       }
       const isExportedDecl = stmt !== node;
-      if (node.type === "FunctionDeclaration" && isMarkedFunction(node)) {
+      // Also matches `export default function (...) {}` / `export default (...) => {}`,
+      // which have no id (arrows can only appear here through export default).
+      if (isMarkedFunction(node)) {
         if (node.id) fns.add(node.id.name);
         if (isExportedDecl && (exportName || node.id)) exportedFns.add(exportName ?? node.id.name);
       } else if (node.type === "ClassDeclaration" || node.type === "ClassExpression") {

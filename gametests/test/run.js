@@ -207,6 +207,35 @@ export default function defaultDebug(...args: unknown[]) {
     assert.match(out, /KEEP/);
   });
 
+  await test("dropcalls: anonymous default exports (function and arrow)", async () => {
+    const dir = makeFixture({
+      "anon-fn.ts": `
+        export default function (...args: unknown[]) {
+          LOGGING: {
+            console.warn("[anon]", ...args);
+          }
+        }
+      `,
+      "anon-arrow.ts": `
+        export default (...args: unknown[]) => {
+          LOGGING: {
+            console.warn("[arrow]", ...args);
+          }
+        };
+      `,
+      "main.ts": `
+        import anonFn from "./anon-fn";
+        import anonArrow from "./anon-arrow";
+        anonFn("DROP_ANON_FN");
+        anonArrow("DROP_ANON_ARROW");
+        console.log("KEEP");
+      `,
+    });
+    const out = await build(dir, "main.ts", { dropLabels: ["LOGGING"] });
+    assert.doesNotMatch(out, /DROP_ANON_FN|DROP_ANON_ARROW/);
+    assert.match(out, /KEEP/);
+  });
+
   await test("dropcalls: marked function passed as a value is kept", async () => {
     const dir = makeFixture({
       "log.ts": LOG_TS,
