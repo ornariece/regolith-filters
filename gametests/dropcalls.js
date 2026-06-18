@@ -28,15 +28,17 @@
 //   class A { log = Logger.getLogger() }  instance in a property
 //   this.log.info(...)
 //   Logger.getLogger("x").info(...)       chained factory call
-const path = require("path");
-const fs = require("fs");
-const {
+import path from "path";
+import fs from "fs";
+import esbuild from "esbuild";
+import {
   LOADERS,
+  TS_TRANSFORM_OPTIONS,
   parse,
   spliceLinePreserving,
   forEachChild,
   removeDeadCode,
-} = require("./ast-utils.js");
+} from "./ast-utils.js";
 
 const EMPTY_ANALYSIS = { fns: new Set(), classes: new Map(), instances: new Map() };
 
@@ -305,8 +307,8 @@ function createCallDropper(dropLabels) {
     let result = EMPTY_ANALYSIS;
     try {
       const source = await fs.promises.readFile(filePath, "utf8");
-      const esbuild = require("esbuild");
       const transformed = await esbuild.transform(source, {
+        ...TS_TRANSFORM_OPTIONS,
         loader: LOADERS[path.extname(filePath).toLowerCase()] || "ts",
       });
       const analysis = await analyzeModule(parse(transformed.code), (importSource) =>
@@ -406,13 +408,13 @@ function dropCallsPlugin(dropper) {
   return {
     name: "drop-labeled-calls",
     setup(build) {
-      const esbuild = require("esbuild");
       const wantSourcemap = !!build.initialOptions.sourcemap;
       build.onLoad({ filter: /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/ }, async (args) => {
         if (args.namespace && args.namespace !== "file") return undefined;
         try {
           const source = await fs.promises.readFile(args.path, "utf8");
           const transformed = await esbuild.transform(source, {
+            ...TS_TRANSFORM_OPTIONS,
             loader: LOADERS[path.extname(args.path).toLowerCase()] || "ts",
             // The inline map is resolved relative to the file's own directory, so
             // the basename makes sources named the same way as untransformed files.
@@ -435,4 +437,4 @@ function dropCallsPlugin(dropper) {
   };
 }
 
-module.exports = { createCallDropper, dropCallsPlugin };
+export { createCallDropper, dropCallsPlugin };

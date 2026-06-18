@@ -1,9 +1,6 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
 const DIRECTORY = "data/gametests/";
-
-if (!fs.existsSync(DIRECTORY + "extra_files"))
-  return console.log("No extra files, skipping step");
 
 /**
  * Source: https://stackoverflow.com/a/22185855/6459649
@@ -30,5 +27,12 @@ var copyRecursiveSync = function (src, dest) {
   }
 };
 
-console.log("Copying extra files");
-copyRecursiveSync(DIRECTORY + "extra_files", "./");
+// Copies the optional `extra_files` directory into the pack root, if present.
+export function moveExtraFiles() {
+  if (!fs.existsSync(DIRECTORY + "extra_files")) {
+    console.log("No extra files, skipping step");
+    return;
+  }
+  console.log("Copying extra files");
+  copyRecursiveSync(DIRECTORY + "extra_files", "./");
+}

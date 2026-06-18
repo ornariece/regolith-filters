@@ -1,8 +1,9 @@
-const { json5Plugin } = require("./json5-plugin.js");
-const { comptimePlugin } = require("./comptime.js");
-const { createCallDropper, dropCallsPlugin } = require("./dropcalls.js");
+import esbuild from "esbuild";
+import { json5Plugin } from "./json5-plugin.js";
+import { comptimePlugin } from "./comptime.js";
+import { createCallDropper, dropCallsPlugin } from "./dropcalls.js";
 
-module.exports.run = function (settings) {
+export function run(settings) {
   const plugins = [json5Plugin()];
   const dropLabels = (settings.buildOptions && settings.buildOptions.dropLabels) || [];
   const dropper =
@@ -16,10 +17,10 @@ module.exports.run = function (settings) {
     plugins.unshift(comptimePlugin({ dropper }));
   }
   // Return the promise so that callers can await the build's completion.
-  return require("esbuild")
+  return esbuild
     .build({ ...settings.buildOptions, metafile: true, plugins })
     .catch((err) => {
       console.error(err.message);
       process.exit(1);
     });
-};
+}

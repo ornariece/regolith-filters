@@ -9,19 +9,21 @@
 // is evaluated while the pack is being built. The `comptime(...)` call is
 // replaced with the serialized result, and helpers/imports that were only
 // used inside comptime callbacks are removed from the emitted module.
-const path = require("path");
-const fs = require("fs");
-const { createRequire } = require("module");
-const { json5Plugin } = require("./json5-plugin.js");
-const {
+import path from "path";
+import fs from "fs";
+import { createRequire } from "module";
+import esbuild from "esbuild";
+import { json5Plugin } from "./json5-plugin.js";
+import {
   LOADERS,
+  TS_TRANSFORM_OPTIONS,
   parse,
   spliceLinePreserving,
   forEachChild,
   visitRefs,
   analyzeTopLevel,
   removeDeadCode,
-} = require("./ast-utils.js");
+} from "./ast-utils.js";
 
 const IDENTIFIER_RE = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
@@ -139,7 +141,6 @@ const comptimePlugin = (state) => {
   return {
     name: "comptime",
     setup(build) {
-      const esbuild = require("esbuild");
       const wantSourcemap = !!build.initialOptions.sourcemap;
 
       // Safety net: if an import of "comptime" survives the transform (e.g. a
@@ -165,6 +166,7 @@ const comptimePlugin = (state) => {
 
         // Strip types first so a single JS parser handles both TS and JS.
         const transformed = await esbuild.transform(source, {
+          ...TS_TRANSFORM_OPTIONS,
           loader: LOADERS[path.extname(args.path).toLowerCase()] || "ts",
           // The inline map is resolved relative to the file's own directory, so
           // the basename makes sources named the same way as untransformed files.
@@ -343,4 +345,4 @@ const comptimePlugin = (state) => {
   };
 };
 
-module.exports.comptimePlugin = comptimePlugin;
+export { comptimePlugin };

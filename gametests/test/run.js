@@ -1,15 +1,15 @@
 // Tests for the build-time transforms (comptime, drop-calls) and module
 // resolution. Run with `node test/run.js` from the filter directory.
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
-const assert = require("assert");
-const esbuild = require("esbuild");
+import fs from "fs";
+import os from "os";
+import path from "path";
+import assert from "assert";
+import esbuild from "esbuild";
 
-const { comptimePlugin } = require("../comptime.js");
-const { createCallDropper, dropCallsPlugin } = require("../dropcalls.js");
-const { json5Plugin } = require("../json5-plugin.js");
-const { resolveModules, manifestVersionFromNpm } = require("../modules.js");
+import { comptimePlugin } from "../comptime.js";
+import { createCallDropper, dropCallsPlugin } from "../dropcalls.js";
+import { json5Plugin } from "../json5-plugin.js";
+import { resolveModules, manifestVersionFromNpm } from "../modules.js";
 
 let failures = 0;
 async function test(name, fn) {
@@ -388,6 +388,40 @@ export class Logger {
     const out = await build(dir, "main.ts", { dropLabels: ["LOGGING"] });
     assert.doesNotMatch(out, /DROP_THIS/);
     assert.match(out, /KEEP_REPORTER/);
+  });
+
+  await test("dropcalls: handles experimental decorators", async () => {
+    const dir = makeFixture({
+      "log.ts": LOG_TS,
+      "main.ts": `
+        import { debug } from "./log";
+        function Module(target: unknown) { return target; }
+        @Module
+        export default class Feature {
+          run() {
+            debug("DROP_DECORATED");
+            console.log("KEEP_DECORATED");
+          }
+        }
+      `,
+    });
+    const out = await build(dir, "main.ts", { dropLabels: ["LOGGING"] });
+    assert.doesNotMatch(out, /DROP_DECORATED/);
+    assert.match(out, /KEEP_DECORATED/);
+  });
+
+  await test("comptime: handles experimental decorators", async () => {
+    const dir = makeFixture({
+      "main.ts": `
+        import { comptime } from "comptime";
+        function Module(target: unknown) { return target; }
+        export const VALUE = comptime(() => 21 * 2);
+        @Module
+        export default class Feature {}
+      `,
+    });
+    const out = await build(dir, "main.ts");
+    assert.match(out, /VALUE = 42/);
   });
 
   await test("modules: manifest version mapping", () => {

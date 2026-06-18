@@ -2,6 +2,7 @@
   "name": "gametests",
   "version": "0.0.1",
   "description": "",
+  "type": "module",
   "scripts": {
     "postinstall": "node ./setup.js",
     "test": "node test/run.js"

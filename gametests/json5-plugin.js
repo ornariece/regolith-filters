@@ -1,6 +1,6 @@
-const path = require("path");
-const fs = require("fs");
-const json5 = require("json5");
+import path from "path";
+import fs from "fs";
+import json5 from "json5";
 
 // A simple esbuild plugin, that converts JSON5 to JSON before passing it to esbuild.
 const json5Plugin = (options) => {
@@ -26,4 +26,4 @@ const json5Plugin = (options) => {
   };
 };
 
-module.exports.json5Plugin = json5Plugin;
+export { json5Plugin };

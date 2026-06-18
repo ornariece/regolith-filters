@@ -1,8 +1,8 @@
 // Resolution of the `modules` filter setting into manifest dependencies and
 // esbuild externals, including the "auto" / "auto-dev" modes that derive them
 // from data/gametests/package.json.
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
 
 // Script modules provided by the engine. Their npm packages contain only
 // typings; the real implementation is loaded by the game through a manifest
@@ -132,4 +132,4 @@ function resolveModules(setting, packageDir) {
   return { modules, externals, devOnly };
 }
 
-module.exports = { resolveModules, manifestVersionFromNpm, parseModuleList };
+export { resolveModules, manifestVersionFromNpm, parseModuleList };

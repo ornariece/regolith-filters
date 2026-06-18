@@ -1,5 +1,5 @@
 // Shared AST helpers used by the comptime and drop-calls transforms.
-const acorn = require("acorn");
+import * as acorn from "acorn";
 
 const LOADERS = {
   ".ts": "ts",
@@ -11,6 +11,13 @@ const LOADERS = {
   ".cjs": "js",
   ".jsx": "jsx",
 };
+
+// esbuild.transform (unlike esbuild.build) does not auto-discover tsconfig.json,
+// so decorators are left intact in the type-stripped output and acorn then fails
+// on the leading `@`. Lower them with experimentalDecorators — the semantics
+// Bedrock script projects use — so the analysis pre-pass can parse the code and
+// the emitted output stays consistent with the main build.
+const TS_TRANSFORM_OPTIONS = { tsconfigRaw: { compilerOptions: { experimentalDecorators: true } } };
 
 function parse(code) {
   return acorn.parse(code, { ecmaVersion: "latest", sourceType: "module" });
@@ -224,8 +231,9 @@ function removeDeadCode(code, candidateNames) {
   return code;
 }
 
-module.exports = {
+export {
   LOADERS,
+  TS_TRANSFORM_OPTIONS,
   parse,
   countLines,
   spliceLinePreserving,
